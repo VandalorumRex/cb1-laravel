@@ -28,6 +28,33 @@ class OffersController extends Controller
         $this->path = filter_input(INPUT_SERVER, 'DOCUMENT_ROOT') . '/../xml/offers.xml';
     }
 
+    public function destroy(string $guid)
+    {
+        if (!file_exists($this->path)) {
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+        } else {
+            $xmlString = (string)file_get_contents($this->path);
+            $dom = new \DomDocument();
+            $dom->loadXML($xmlString);
+
+            // Найдем элемент который необходимо удалить
+            $xpath = new \DOMXpath($dom);
+            $nodelist = $xpath->query("/offers/offer[@internal-id='" . $guid . "']");
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер не найден'];
+            $oldnode = $nodelist->item(0);
+            if ($oldnode) {
+                // Удаляем элемент
+                $oldnode->parentNode->removeChild($oldnode);
+                $dom->preserveWhiteSpace = false;
+                $dom->formatOutput = true;
+                $savedXml = $dom->saveXML();
+                $xmlPretty = str_replace("  \n", '', $savedXml);
+                file_put_contents($this->path, $xmlPretty);
+                $response = ['message' => 'Оффер успешно удалён'];
+            }
+        }
+        return response()->json($response);
+    }
 
     public function index()
     {
