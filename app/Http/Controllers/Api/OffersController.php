@@ -31,22 +31,24 @@ class OffersController extends Controller
         if (file_exists($this->path)) {
             $xmlString = (string)file_get_contents($this->path);
             //$xml = Xml::build($xmlString);
-            $dom = new \DomDocument;
-            $dom->loadXML($xmlString);
+            //$dom = new \DomDocument;
+            //$dom->loadXML($xmlString);
+            $xml = new \SimpleXMLElement($xmlString);
             $superResponse = [];
-            foreach ($dom as $offer) {
+            foreach ($xml as $offer) {
                 $response = ['internalId' => (string)$offer[0]->attributes()->{'internal-id'}[0]];
                 foreach ($offer[0] as $field => $value) {
                     $isObject = count($value[0]) > 1;
                     // camel-case => camelCase
-                    $feld = Inflector::variable($field, '-');
+                    $feld = $field;//Inflector::variable($field, '-');
                     $response[$feld] =  $isObject ? $value[0] : (string)$value[0];
                     if (!$isObject) {
                         $response[$feld] =  (string)$value[0];
                     } else {
                         $response[$feld] = [];
                         foreach ($value[0] as $subField => $subValue) {
-                            $response[$feld][Inflector::variable($subField, '-')] = (string)$subValue[0];
+                            //$response[$feld][Inflector::variable($subField, '-')] = (string)$subValue[0];
+                            $response[$feld][$subField] = (string)$subValue[0];
                         }
                     }
                 }
