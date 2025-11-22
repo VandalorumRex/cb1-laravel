@@ -34,7 +34,7 @@ class OffersController extends Controller
             $dom = new \DomDocument;
             $dom->loadXML($xmlString);
             $superResponse = [];
-            foreach ($xml as $offer) {
+            foreach ($dom as $offer) {
                 $response = ['internalId' => (string)$offer[0]->attributes()->{'internal-id'}[0]];
                 foreach ($offer[0] as $field => $value) {
                     $isObject = count($value[0]) > 1;
@@ -57,6 +57,40 @@ class OffersController extends Controller
         return response()->json($superResponse);
     }
     
+    public function show(string $guid)
+    {
+        if (!file_exists($this->path)) {
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+        } else {
+            $xmlString = (string)file_get_contents($this->path);
+            //$xml = Xml::build($xmlString);
+            $xml = new \SimpleXMLElement($xmlString);
+            //$xml->loadXML($xmlString);
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер на найден'];
+            $offer = $xml->xpath("//offer[@internal-id='" . $guid . "']");
+            if ($offer) {
+                $response = ['internalId' => $guid];
+                foreach ($offer[0] as $field => $value) {
+                    $isObject = count($value[0]) > 1;
+                    // camel-case => camelCase
+                    $feld = $field;//Inflector::variable($field, '-');
+                    $response[$feld] =  $isObject ? $value[0] : (string)$value[0];
+                    if (!$isObject) {
+                        $response[$feld] =  (string)$value[0];
+                    } else {
+                        $response[$feld] = [];
+                        foreach ($value[0] as $subField => $subValue) {
+                            //$response[$feld][Inflector::variable($subField, '-')] = (string)$subValue[0];
+                            $response[$feld][$subField] = (string)$subValue[0];
+                        }
+                    }
+                }
+                //print_r($response);
+            }
+        }
+        return response()->json($response);
+    }
+
     public function store(\Illuminate\Http\Request $request)
     {
         /** @var array<string, string|array<string, string>> $offer */
