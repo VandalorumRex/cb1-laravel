@@ -6,6 +6,7 @@ declare(strict_types=1);
  */
 namespace App\Http\Controllers\Api;
 
+use App\Lib\Utils;
 use App\Models\Response\HttpCode;
 use Illuminate\Routing\Controller;
 /**
@@ -55,4 +56,52 @@ class OffersController extends Controller
         //$this->json($superResponse);
         return response()->json($superResponse);
     }
+    
+    public function store(\Illuminate\Http\Request $request)
+    {
+        /** @var array<string, string|array<string, string>> $offer */
+        $offer = $request->all();//$this->request->getData();
+        //print_r($offer);
+        //return response()->json($offer);
+        if (!file_exists(filter_input(INPUT_SERVER, 'DOCUMENT_ROOT') . '/../xml')) {
+            mkdir(filter_input(INPUT_SERVER, 'DOCUMENT_ROOT') . '/../xml');
+        }
+        if (!file_exists($this->path)) {
+            $xmlString = '<?xml version="1.0" encoding="UTF-8"?><offers></offers>';
+        } else {
+            $xmlString = (string)file_get_contents($this->path);
+        }
+        $offers = new \SimpleXMLElement($xmlString);
+        $child = $offers->addChild('offer');
+        foreach ($offer as $field => $item) {
+            if (is_array($item)) {
+                $onyq = $child->addChild($field);
+                //print_r($item);
+                foreach ($item as $subField => $subItem) {
+                    // Превращаем camelCase в camel-case
+                    //$onyq->addChild(Inflector::dasherize($subField), $subItem);
+                    //print_r($subItem);
+                    $onyq->addChild($subField, $subItem);
+                }
+            } else {
+                if ($field === 'creationDate' && !$item) {
+                    $item = date('c');
+                }
+                // Превращаем camelCase в camel-case согласно 
+                // https://yandex.ru/support/realty/ru/requirements/requirements-sale-housing#in_common
+                //$child->addChild(Inflector::dasherize($field), $item);
+                $child->addChild($field, $item);
+            }
+        }
+        $child->addAttribute('internal-id', Utils::GUIDv4());
+
+        $dom = new \DOMDocument('1.0');
+        $dom->preserveWhiteSpace = false;
+        $dom->formatOutput = true;
+        $dom->loadXML((string)$offers->asXML());
+        $xmlPretty = $dom->saveXML();
+        file_put_contents($this->path, $xmlPretty);
+        return response()->json(['code' => HttpCode::CREATED, 'message' => 'Принято']);
+    }
+
 }
