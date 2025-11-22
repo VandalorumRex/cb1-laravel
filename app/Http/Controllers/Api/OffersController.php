@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Scripting/PHPClass.php to edit this template
@@ -8,7 +10,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Lib\Utils;
 use App\Models\Response\HttpCode;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+
 /**
  * Description of OffersController
  *
@@ -17,7 +21,7 @@ use Illuminate\Routing\Controller;
 class OffersController extends Controller
 {
     private string $path;
-    
+
     public function __construct()
     {
         //parent::__construct();
@@ -58,7 +62,7 @@ class OffersController extends Controller
         //$this->json($superResponse);
         return response()->json($superResponse);
     }
-    
+
     public function show(string $guid)
     {
         if (!file_exists($this->path)) {
@@ -93,7 +97,7 @@ class OffersController extends Controller
         return response()->json($response);
     }
 
-    public function store(\Illuminate\Http\Request $request)
+    public function store(Request $request)
     {
         /** @var array<string, string|array<string, string>> $offer */
         $offer = $request->all();//$this->request->getData();
@@ -123,7 +127,7 @@ class OffersController extends Controller
                 if ($field === 'creationDate' && !$item) {
                     $item = date('c');
                 }
-                // Превращаем camelCase в camel-case согласно 
+                // Превращаем camelCase в camel-case согласно
                 // https://yandex.ru/support/realty/ru/requirements/requirements-sale-housing#in_common
                 //$child->addChild(Inflector::dasherize($field), $item);
                 $child->addChild($field, $item);
@@ -140,4 +144,45 @@ class OffersController extends Controller
         return response()->json(['code' => HttpCode::CREATED, 'message' => 'Принято']);
     }
 
+    public function update(Request $request, string $guid)
+    {
+        $offer = $request->all();
+        //print_r($offer);
+        if (!file_exists($this->path)) {
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+        } else {
+            $xmlString = (string)file_get_contents($this->path);
+            $dom = new \DomDocument();
+            $dom->loadXML($xmlString);
+
+            // Найдем элемент который необходимо изменить
+            $xpath = new \DOMXpath($dom);
+            $nodelist = $xpath->query("/offers/offer[@internal-id='" . $guid . "']");
+            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер не найден'];
+            $foundNode = $nodelist->item(0);
+            if ($foundNode) {
+                foreach ($offer as $field => $value) {
+                    //$node = $foundNode->getElementsByTagName(Inflector::dasherize($field));
+                    $node = $foundNode->getElementsByTagName($field);
+                    if ($node->item(0) && $field !== 'creationDate') {
+                        if (is_string($value)) {
+                            $node->item(0)->nodeValue = $value;
+                        } else {
+                            foreach ($value as $subField => $subValue) {
+                                //$subNode = $node->item(0)->getElementsByTagName(Inflector::dasherize($subField));
+                                $subNode = $node->item(0)->getElementsByTagName($subField);
+                                if ($subNode->item(0)) {
+                                    $subNode->item(0)->nodeValue = $subValue;
+                                }
+                            }
+                        }
+                    }
+                }
+                $savedXml = $dom->saveXML();
+                file_put_contents($this->path, $savedXml);
+                $response = ['message' => 'Сохранено'];
+            }
+        }
+        return response()->json($response);
+    }
 }
