@@ -31,7 +31,8 @@ class OffersController extends Controller
     public function destroy(string $guid)
     {
         if (!file_exists($this->path)) {
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+            $response = ['message' => 'Данные не найдены'];
+            $code = HttpCode::NOT_FOUND;
         } else {
             $xmlString = (string)file_get_contents($this->path);
             $dom = new \DomDocument();
@@ -40,7 +41,8 @@ class OffersController extends Controller
             // Найдем элемент который необходимо удалить
             $xpath = new \DOMXpath($dom);
             $nodelist = $xpath->query("/offers/offer[@internal-id='" . $guid . "']");
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер не найден'];
+            $response = ['message' => 'Оффер не найден'];
+            $code = HttpCode::NOT_FOUND;
             $oldnode = $nodelist->item(0);
             if ($oldnode) {
                 // Удаляем элемент
@@ -53,19 +55,18 @@ class OffersController extends Controller
                 $response = ['message' => 'Оффер успешно удалён'];
             }
         }
-        return response()->json($response);
+        return response()->json($response, $code);
     }
 
     public function index()
     {
-        $superResponse = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+        $superResponse = ['message' => 'Данные не найдены'];
+        $code = HttpCode::NOT_FOUND;
         if (file_exists($this->path)) {
             $xmlString = (string)file_get_contents($this->path);
-            //$xml = Xml::build($xmlString);
-            //$dom = new \DomDocument;
-            //$dom->loadXML($xmlString);
             $xml = new \SimpleXMLElement($xmlString);
             $superResponse = [];
+            $code = HttpCode::OK;
             foreach ($xml as $offer) {
                 $response = ['internalId' => (string)$offer[0]->attributes()->{'internal-id'}[0]];
                 foreach ($offer[0] as $field => $value) {
@@ -86,23 +87,23 @@ class OffersController extends Controller
                 array_push($superResponse, $response);
             }
         }
-        //$this->json($superResponse);
-        return response()->json($superResponse);
+        return response()->json($superResponse, $code);
     }
 
     public function show(string $guid)
     {
         if (!file_exists($this->path)) {
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+            $response = ['message' => 'Данные не найдены'];
+            $code = HttpCode::NOT_FOUND;
         } else {
             $xmlString = (string)file_get_contents($this->path);
-            //$xml = Xml::build($xmlString);
             $xml = new \SimpleXMLElement($xmlString);
-            //$xml->loadXML($xmlString);
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер на найден'];
+            $response = ['message' => 'Оффер на найден'];
+            $code = HttpCode::NOT_FOUND;
             $offer = $xml->xpath("//offer[@internal-id='" . $guid . "']");
             if ($offer) {
                 $response = ['internalId' => $guid];
+                $code = HttpCode::OK;
                 foreach ($offer[0] as $field => $value) {
                     $isObject = count($value[0]) > 1;
                     // camel-case => camelCase
@@ -118,10 +119,9 @@ class OffersController extends Controller
                         }
                     }
                 }
-                //print_r($response);
             }
         }
-        return response()->json($response);
+        return response()->json($response, $code);
     }
 
     public function store(Request $request)
@@ -168,7 +168,7 @@ class OffersController extends Controller
         $dom->loadXML((string)$offers->asXML());
         $xmlPretty = $dom->saveXML();
         file_put_contents($this->path, $xmlPretty);
-        return response()->json(['code' => HttpCode::CREATED, 'message' => 'Принято']);
+        return response()->json(['message' => 'Принято'], HttpCode::CREATED);
     }
 
     public function update(Request $request, string $guid)
@@ -176,7 +176,8 @@ class OffersController extends Controller
         $offer = $request->all();
         //print_r($offer);
         if (!file_exists($this->path)) {
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Данные не найдены'];
+            $response = ['message' => 'Данные не найдены'];
+            $code = HttpCode::NOT_FOUND;
         } else {
             $xmlString = (string)file_get_contents($this->path);
             $dom = new \DomDocument();
@@ -185,7 +186,8 @@ class OffersController extends Controller
             // Найдем элемент который необходимо изменить
             $xpath = new \DOMXpath($dom);
             $nodelist = $xpath->query("/offers/offer[@internal-id='" . $guid . "']");
-            $response = ['code' => HttpCode::NOT_FOUND, 'message' => 'Оффер не найден'];
+            $response = ['message' => 'Оффер не найден'];
+            $code = HttpCode::NOT_FOUND;
             $foundNode = $nodelist->item(0);
             if ($foundNode) {
                 foreach ($offer as $field => $value) {
@@ -208,8 +210,9 @@ class OffersController extends Controller
                 $savedXml = $dom->saveXML();
                 file_put_contents($this->path, $savedXml);
                 $response = ['message' => 'Сохранено'];
+                $code = HttpCode::OK;
             }
         }
-        return response()->json($response);
+        return response()->json($response, $code);
     }
 }
